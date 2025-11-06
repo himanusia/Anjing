@@ -38,6 +38,19 @@ class Anjing(Bot):
         self.set_turn_radar_left(float('inf'))
         self.set_adjust_radar_for_gun_turn(True)
 
+    async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
+        fire_power = 1
+        sudut = self._prediksi_sudut(
+            scanned_bot_event.x, scanned_bot_event.y, scanned_bot_event.direction, scanned_bot_event.speed,
+            self.get_x(), self.get_y(), self.calc_bullet_speed(fire_power)
+        )
+        self.set_turn_gun_left(sudut)
+        await self.fire(1)
+
+        if (scanned_bot_event.energy < 100):
+            sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
+            self.set_turn_radar_left(float('inf') * sudut)
+
     def _prediksi_sudut(self,
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
         xk: float, yk: float, bullet_speed: float
@@ -55,19 +68,6 @@ class Anjing(Bot):
         fire_dir = los_rad + angle_offset
 
         return self.calc_gun_bearing(math.degrees(fire_dir))
-
-    async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
-        fire_power = 1
-        sudut = self._prediksi_sudut(
-            scanned_bot_event.x, scanned_bot_event.y, scanned_bot_event.direction, scanned_bot_event.speed,
-            self.get_x(), self.get_y(), self.calc_bullet_speed(fire_power)
-        )
-        self.set_turn_gun_left(sudut)
-        await self.fire(1)
-
-        if (scanned_bot_event.energy < 100):
-            sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
-            self.set_turn_radar_left(float('inf') * sudut)
 
 async def main() -> None:
     bot = Anjing()
