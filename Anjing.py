@@ -8,11 +8,13 @@ from robocode_tank_royale.bot_api.bot import Bot
 """
 V1.0
 - kosongan
+V1.1
+- radar 360
 """
 # ------------------------------------------------------------------
 class Anjing(Bot):
     async def run(self) -> None:
-        pass
+        self.set_turn_radar_left(float('inf'))
 
 
 async def main() -> None:
