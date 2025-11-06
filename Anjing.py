@@ -27,6 +27,8 @@ v2.2.1
 - precise linear targeting
 v2.2.2
 - approx linear targeting (singkat)
+v2.2.3
+- explanation of approx linear targeting
 
 """
 # ------------------------------------------------------------------
@@ -40,8 +42,18 @@ class Anjing(Bot):
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
         xk: float, yk: float, bullet_speed: float
     ):
+        # 1. Sudut absolut dari kita ke musuh (radian)
         los_rad = math.atan2(ym - yk, xm - xk)
-        fire_dir = los_rad + enemy_speed * math.sin(math.radians(enemy_deg) - los_rad) / bullet_speed
+
+        # 2. Lateral velocity relatif ke garis pandang kita
+        lateral = enemy_speed * math.sin(math.radians(enemy_deg) - los_rad)
+
+        # 3. Sudut koreksi (aprox asin(v_lat / v_bullet)) (radian)
+        angle_offset = lateral / bullet_speed
+
+        # 4. Sudut tembak absolut (radian)
+        fire_dir = los_rad + angle_offset
+
         return self.calc_gun_bearing(math.degrees(fire_dir))
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
