@@ -1,0 +1,14 @@
+{
+  "name": "Anjing",
+  "version": "1.0",
+  "authors": [
+    "himanusia"
+  ],
+  "description": "Anjing galak.",
+  "homepage": "",
+  "countryCodes": [
+    "id"
+  ],
+  "platform": "Python",
+  "programmingLang": "Python 3"
+}
