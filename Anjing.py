@@ -25,8 +25,8 @@ v2.1
 - fire ke scanned bot / head-on targeting
 v2.2.1
 - precise linear targeting
-v2.2.1
-- approx linear targeting
+v2.2.2
+- approx linear targeting (singkat)
 
 """
 # ------------------------------------------------------------------
@@ -40,37 +40,9 @@ class Anjing(Bot):
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
         xk: float, yk: float, bullet_speed: float
     ):
-        # 1. Vektor kecepatan musuh
-        theta = math.radians(enemy_deg)
-        vx = enemy_speed * math.cos(theta)
-        vy = enemy_speed * math.sin(theta)
-
-        # 2. Selisih posisi awal
-        dx = xm - xk
-        dy = ym - yk
-
-        # 3. Koefisien kuadrat
-        a = vx*vx + vy*vy - bullet_speed**2
-        b = 2 * (dx*vx + dy*vy)
-        c = dx*dx + dy*dy
-
-        D = b*b - 4*a*c
-        if D < 0:
-            return self.gun_bearing_to(xm, ym)  # tidak ada solusi nyata -> peluru kepelanan
-        sqrtD = math.sqrt(D)
-        t1 = (-b + sqrtD) / (2*a)
-        t2 = (-b - sqrtD) / (2*a)
-
-        # ambil t positif terkecil
-        ts = [t for t in (t1, t2) if t > 0]
-        if not ts: # ga mungkin
-            return self.gun_bearing_to(xm, ym)
-        t = min(ts)
-
-        # 5. Titik tumbukan
-        x_hit = xm + vx * t
-        y_hit = ym + vy * t
-        return self.gun_bearing_to(x_hit, y_hit)
+        los_rad = math.atan2(ym - yk, xm - xk)
+        fire_dir = los_rad + enemy_speed * math.sin(math.radians(enemy_deg) - los_rad) / bullet_speed
+        return self.calc_gun_bearing(math.degrees(fire_dir))
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
         fire_power = 1
