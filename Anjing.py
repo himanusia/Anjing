@@ -10,6 +10,8 @@ import math
 
 class Anjing(Bot):
     async def run(self) -> None:
+        self.old_enemy_dir: float = 0
+        
         self.set_turn_radar_left(float('inf'))
         self.set_adjust_radar_for_gun_turn(True)
 
@@ -29,20 +31,19 @@ class Anjing(Bot):
     def _prediksi_sudut(self,
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
         xk: float, yk: float, bullet_speed: float
-    ):
-        # 1. Sudut absolut dari kita ke musuh (radian)
-        los_rad = math.atan2(ym - yk, xm - xk)
+    ) -> float:
+        new_enemy_dir = math.radians(enemy_deg)
+        dir_change = new_enemy_dir - self.old_enemy_dir
+        self.old_enemy_dir = new_enemy_dir
 
-        # 2. Lateral velocity relatif ke garis pandang kita
-        lateral = enemy_speed * math.sin(math.radians(enemy_deg) - los_rad)
+        t, pred_x, pred_y = 0, xm, ym
+        while (t * bullet_speed < math.dist((pred_x, pred_y), (xk, yk))):
+            pred_x += math.cos(new_enemy_dir) * enemy_speed
+            pred_y += math.sin(new_enemy_dir) * enemy_speed
+            new_enemy_dir += dir_change
+            t += 1
 
-        # 3. Sudut koreksi (aprox asin(v_lat / v_bullet)) (radian)
-        angle_offset = lateral / bullet_speed
-
-        # 4. Sudut tembak absolut (radian)
-        fire_dir = los_rad + angle_offset
-
-        return self.calc_gun_bearing(math.degrees(fire_dir))
+        return self.gun_bearing_to(pred_x, pred_y)
 
 async def main() -> None:
     bot = Anjing()

@@ -21,3 +21,5 @@
 - approx linear targeting (singkat)
 ### v2.2.3
 - explanation of approx linear targeting
+### v2.3
+- circular targeting
