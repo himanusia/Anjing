@@ -1,7 +1,7 @@
 import asyncio
 
 from robocode_tank_royale.bot_api.bot import Bot
-from robocode_tank_royale.bot_api.events import ScannedBotEvent
+from robocode_tank_royale.bot_api.events import ScannedBotEvent, TickEvent
 import math
 
 # ------------------------------------------------------------------
@@ -9,13 +9,38 @@ import math
 # ------------------------------------------------------------------
 
 class Anjing(Bot):
+    MOVE_WALL_MARGIN: float = 25
+
     async def run(self) -> None:
+        self.move_dir: bool  = True
+        self.enemy_distance: float = float('inf')
         self.old_enemy_dir: float = 0
         
         self.set_turn_radar_left(float('inf'))
         self.set_adjust_radar_for_gun_turn(True)
         self.set_adjust_radar_for_body_turn(True)
         self.set_adjust_gun_for_body_turn(True)
+
+    async def on_tick(self, tick_event: TickEvent) -> None:
+        del tick_event
+        x = Anjing.MOVE_WALL_MARGIN + self.enemy_distance / 3
+        y = Anjing.MOVE_WALL_MARGIN
+        
+        if self.distance_remaining == 0:
+            self.move_dir = not self.move_dir
+            
+        if self.move_dir:
+            x, y = y, x
+            
+        if self.get_x() > self.get_arena_width() / 2:
+            x = self.get_arena_width() - x
+            
+        if self.get_y() > self.get_arena_height() / 2:
+            y = self.get_arena_height() - y
+            
+        turn = math.radians(self.bearing_to(x, y))
+        self.set_turn_left(math.degrees(math.tan(turn)))
+        self.set_forward(self.distance_to(x, y) * math.cos(turn))
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
         fire_power = 1
@@ -30,8 +55,7 @@ class Anjing(Bot):
             sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
             self.set_turn_radar_left(float('inf') * sudut)
 
-        self.set_turn_left((self.bearing_to(scanned_bot_event.x, scanned_bot_event.y)))
-        self.set_forward(self.distance_to(scanned_bot_event.x, scanned_bot_event.y))
+        self.enemy_distance = self.distance_to(scanned_bot_event.x, scanned_bot_event.y)
 
     def _prediksi_sudut(self,
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
