@@ -14,6 +14,8 @@ class Anjing(Bot):
         
         self.set_turn_radar_left(float('inf'))
         self.set_adjust_radar_for_gun_turn(True)
+        self.set_adjust_radar_for_body_turn(True)
+        self.set_adjust_gun_for_body_turn(True)
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
         fire_power = 1
@@ -27,6 +29,9 @@ class Anjing(Bot):
         if (scanned_bot_event.energy < 100):
             sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
             self.set_turn_radar_left(float('inf') * sudut)
+
+        self.set_turn_left((self.bearing_to(scanned_bot_event.x, scanned_bot_event.y)))
+        self.set_forward(self.distance_to(scanned_bot_event.x, scanned_bot_event.y))
 
     def _prediksi_sudut(self,
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
