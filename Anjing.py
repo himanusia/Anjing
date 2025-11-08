@@ -10,7 +10,8 @@ import numpy as np
 # ------------------------------------------------------------------
 
 class Anjing(Bot):
-    MOVE_WALL_MARGIN: float = 18
+    MOVE_WALL_MARGIN: float = 25
+    GUN_FACTOR: float = 3.0
 
     async def run(self) -> None:        
         self.move_dir: bool  = True
@@ -31,7 +32,6 @@ class Anjing(Bot):
 
         if self.get_enemy_count() == 1:
             return
-        print(self.get_enemy_count())
 
         x = Anjing.MOVE_WALL_MARGIN + self.enemy_distance / 3
         y = Anjing.MOVE_WALL_MARGIN
@@ -53,7 +53,9 @@ class Anjing(Bot):
         self.set_forward(self.distance_to(x, y) * np.cos(turn))
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
-        fire_power = 1
+        self.enemy_distance = self.distance_to(scanned_bot_event.x, scanned_bot_event.y)
+
+        fire_power = max(0.1, Anjing.GUN_FACTOR * scanned_bot_event.energy / self.enemy_distance)
         sudut = self._prediksi_sudut(
             scanned_bot_event.x, scanned_bot_event.y, scanned_bot_event.direction, scanned_bot_event.speed,
             self.get_x(), self.get_y(), self.calc_bullet_speed(fire_power)
@@ -65,7 +67,6 @@ class Anjing(Bot):
             sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
             self.set_turn_radar_left(float('inf') * sudut)
 
-        self.enemy_distance = self.distance_to(scanned_bot_event.x, scanned_bot_event.y)
         energy_drop = self.old_enemy_energy - scanned_bot_event.energy
         if 0.1 <= energy_drop <= 3 and \
             self.get_enemy_count() == 1 and \

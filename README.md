@@ -35,3 +35,6 @@
 ## OPTIMIZE
 ### v4.0
 - math -> numpy
+### v4.1
+- add adaptive fire power
+- change wall margin to 25
