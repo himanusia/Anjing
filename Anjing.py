@@ -2,7 +2,7 @@ import asyncio
 
 from robocode_tank_royale.bot_api.bot import Bot
 from robocode_tank_royale.bot_api.events import ScannedBotEvent, TickEvent
-import math
+
 import numpy as np
 
 # ------------------------------------------------------------------
@@ -12,13 +12,13 @@ import numpy as np
 class Anjing(Bot):
     MOVE_WALL_MARGIN: float = 18
 
-    async def run(self) -> None:
+    async def run(self) -> None:        
         self.move_dir: bool  = True
         self.enemy_distance: float = float('inf')
         self.old_enemy_dir: float = 0
         self.old_enemy_id: int = 0
         self.old_enemy_energy: float = 0
-        self.arena_diagonal: float = math.hypot(self.get_arena_width(), self.get_arena_height())
+        self.arena_diagonal: float = np.hypot(self.get_arena_width(), self.get_arena_height())
         self.sag_dir: int = 1
         
         self.set_turn_radar_left(float('inf'))
@@ -48,9 +48,9 @@ class Anjing(Bot):
         if self.get_y() > self.get_arena_height() / 2:
             y = self.get_arena_height() - y
             
-        turn = math.radians(self.bearing_to(x, y))
-        self.set_turn_left(math.degrees(math.tan(turn)))
-        self.set_forward(self.distance_to(x, y) * math.cos(turn))
+        turn = np.radians(self.bearing_to(x, y))
+        self.set_turn_left(np.degrees(np.tan(turn)))
+        self.set_forward(self.distance_to(x, y) * np.cos(turn))
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
         fire_power = 1
@@ -75,17 +75,16 @@ class Anjing(Bot):
             distance = (3 + energy_drop * 2) * 8
             direction = self.bearing_to(scanned_bot_event.x, scanned_bot_event.y) \
                         + (90 - 15 * self.enemy_distance / self.arena_diagonal) * self.sag_dir
-            to_x = self.get_x() + math.cos(math.radians(direction)) * distance
-            to_y = self.get_y() + math.sin(math.radians(direction)) * distance
+            to_x = self.get_x() + np.cos(np.radians(direction)) * distance
+            to_y = self.get_y() + np.sin(np.radians(direction)) * distance
             if (to_x < Anjing.MOVE_WALL_MARGIN or to_x > self.get_arena_width() - Anjing.MOVE_WALL_MARGIN or
                 to_y < Anjing.MOVE_WALL_MARGIN or to_y > self.get_arena_height() - Anjing.MOVE_WALL_MARGIN):
                 self.sag_dir *= -1
 
-            turn = math.radians(self.bearing_to(scanned_bot_event.x, scanned_bot_event.y) \
+            turn = np.radians(self.bearing_to(scanned_bot_event.x, scanned_bot_event.y) \
                         + (90 - 15 * self.enemy_distance / self.arena_diagonal) * self.sag_dir)
-            self.set_turn_left(self.normalize_relative_angle(math.degrees(math.tan(turn))))
-            print(self.normalize_relative_angle(math.degrees(math.tan(turn))))
-            self.set_forward(distance * np.sign(math.cos(turn)))
+            self.set_turn_left(self.normalize_relative_angle(np.degrees(np.tan(turn))))
+            self.set_forward(distance * np.sign(np.cos(turn)))
         self.old_enemy_id = scanned_bot_event.scanned_bot_id
         self.old_enemy_energy = scanned_bot_event.energy
 
@@ -93,17 +92,17 @@ class Anjing(Bot):
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,
         xk: float, yk: float, bullet_speed: float
     ) -> float:
-        new_enemy_dir = math.radians(enemy_deg)
+        new_enemy_dir = np.radians(enemy_deg)
         dir_change = new_enemy_dir - self.old_enemy_dir
         self.old_enemy_dir = new_enemy_dir
 
         t, pred_x, pred_y = 0, xm, ym
-        while (t * bullet_speed < math.dist((pred_x, pred_y), (xk, yk))):
-            pred_x += math.cos(new_enemy_dir) * enemy_speed
-            pred_y += math.sin(new_enemy_dir) * enemy_speed
-            new_enemy_dir += dir_change
+        while (t * bullet_speed < np.hypot((pred_x - xk), (pred_y - yk))):
+            new_enemy_dir = self.normalize_relative_angle(new_enemy_dir + dir_change)
+            pred_x += np.cos(new_enemy_dir) * enemy_speed
+            pred_y += np.sin(new_enemy_dir) * enemy_speed
             t += 1
-
+        
         return self.gun_bearing_to(pred_x, pred_y)
 
 async def main() -> None:

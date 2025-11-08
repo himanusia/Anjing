@@ -31,3 +31,7 @@
 - corner
 ### v3.2
 - stop & go
+
+## OPTIMIZE
+### v4.0
+- math -> numpy
