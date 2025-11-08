@@ -38,3 +38,7 @@
 ### v4.1
 - add adaptive fire power
 - change wall margin to 25
+### v4.2
+- add enemy info class
+- refactor variable name
+- add targeting graphical debugging
