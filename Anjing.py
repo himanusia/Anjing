@@ -3,18 +3,23 @@ import asyncio
 from robocode_tank_royale.bot_api.bot import Bot
 from robocode_tank_royale.bot_api.events import ScannedBotEvent, TickEvent
 import math
+import numpy as np
 
 # ------------------------------------------------------------------
 # Anjing
 # ------------------------------------------------------------------
 
 class Anjing(Bot):
-    MOVE_WALL_MARGIN: float = 25
+    MOVE_WALL_MARGIN: float = 18
 
     async def run(self) -> None:
         self.move_dir: bool  = True
         self.enemy_distance: float = float('inf')
         self.old_enemy_dir: float = 0
+        self.old_enemy_id: int = 0
+        self.old_enemy_energy: float = 0
+        self.arena_diagonal: float = math.hypot(self.get_arena_width(), self.get_arena_height())
+        self.sag_dir: int = 1
         
         self.set_turn_radar_left(float('inf'))
         self.set_adjust_radar_for_gun_turn(True)
@@ -23,6 +28,11 @@ class Anjing(Bot):
 
     async def on_tick(self, tick_event: TickEvent) -> None:
         del tick_event
+
+        if self.get_enemy_count() == 1:
+            return
+        print(self.get_enemy_count())
+
         x = Anjing.MOVE_WALL_MARGIN + self.enemy_distance / 3
         y = Anjing.MOVE_WALL_MARGIN
         
@@ -51,11 +61,33 @@ class Anjing(Bot):
         self.set_turn_gun_left(sudut)
         await self.fire(1)
 
-        if (scanned_bot_event.energy < 100):
+        if self.get_gun_heat() < 0.7:
             sudut = self.normalize_relative_angle(self.radar_bearing_to(scanned_bot_event.x, scanned_bot_event.y))
             self.set_turn_radar_left(float('inf') * sudut)
 
         self.enemy_distance = self.distance_to(scanned_bot_event.x, scanned_bot_event.y)
+        energy_drop = self.old_enemy_energy - scanned_bot_event.energy
+        if 0.1 <= energy_drop <= 3 and \
+            self.get_enemy_count() == 1 and \
+            scanned_bot_event.scanned_bot_id == self.old_enemy_id and \
+            self.turn_remaining == 0:
+
+            distance = (3 + energy_drop * 2) * 8
+            direction = self.bearing_to(scanned_bot_event.x, scanned_bot_event.y) \
+                        + (90 - 15 * self.enemy_distance / self.arena_diagonal) * self.sag_dir
+            to_x = self.get_x() + math.cos(math.radians(direction)) * distance
+            to_y = self.get_y() + math.sin(math.radians(direction)) * distance
+            if (to_x < Anjing.MOVE_WALL_MARGIN or to_x > self.get_arena_width() - Anjing.MOVE_WALL_MARGIN or
+                to_y < Anjing.MOVE_WALL_MARGIN or to_y > self.get_arena_height() - Anjing.MOVE_WALL_MARGIN):
+                self.sag_dir *= -1
+
+            turn = math.radians(self.bearing_to(scanned_bot_event.x, scanned_bot_event.y) \
+                        + (90 - 15 * self.enemy_distance / self.arena_diagonal) * self.sag_dir)
+            self.set_turn_left(self.normalize_relative_angle(math.degrees(math.tan(turn))))
+            print(self.normalize_relative_angle(math.degrees(math.tan(turn))))
+            self.set_forward(distance * np.sign(math.cos(turn)))
+        self.old_enemy_id = scanned_bot_event.scanned_bot_id
+        self.old_enemy_energy = scanned_bot_event.energy
 
     def _prediksi_sudut(self,
         xm: float, ym: float, enemy_deg: float, enemy_speed: float,

@@ -29,3 +29,5 @@
 - maju ngejar
 ### v3.1
 - corner
+### v3.2
+- stop & go
