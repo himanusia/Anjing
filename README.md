@@ -42,3 +42,8 @@
 - add enemy info class
 - refactor variable name
 - add targeting graphical debugging
+### v4.3
+- move EnemyInfo class to utils
+- add gun heat, last hit by, acceleration
+- add event handling
+- add utils with EnemyInfo and BulletInfo

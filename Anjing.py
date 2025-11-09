@@ -1,10 +1,12 @@
 import asyncio
 
 from robocode_tank_royale.bot_api.bot import Bot
-from robocode_tank_royale.bot_api.events import ScannedBotEvent, BotDeathEvent
+from robocode_tank_royale.bot_api.events import ScannedBotEvent, BotDeathEvent, BulletHitBotEvent, BulletHitBulletEvent, BulletHitWallEvent, BulletFiredEvent
 from robocode_tank_royale.bot_api.graphics.color import Color
 
 import numpy as np
+
+from utils import EnemyInfo, BulletInfo
 
 # ------------------------------------------------------------------
 # Anjing
@@ -20,6 +22,8 @@ class Anjing(Bot):
         self._move_dir: bool  = True
         self._target_enemy: EnemyInfo | None = None
         self._enemy_dict: dict[int, EnemyInfo] = {}
+        self._bullet_dict: dict[int, BulletInfo] = {}
+
         self._sag_dir: int = 1
 
     async def run(self) -> None:        
@@ -32,11 +36,11 @@ class Anjing(Bot):
 
         # Reset enemy info
         self._enemy_dict = {}
+        self._bullet_dict = {}
         self._target_enemy = None
 
         while self.is_running():
             await self._handle_select_target()
-
             await self._handle_movement()
             await self._handle_gun()
             await self._handle_radar()
@@ -160,21 +164,13 @@ class Anjing(Bot):
             )
         else:
             enemy = self._enemy_dict[scanned_bot_event.scanned_bot_id]
-            enemy.history.append(EnemyInfo(
-                enemy.id,
-                enemy.energy,
-                enemy.direction,
-                enemy.speed,
-                enemy.position,
-                enemy.last_seen,
-                enemy.distance
-            ))
-            enemy.energy = scanned_bot_event.energy
-            enemy.direction = scanned_bot_event.direction
-            enemy.speed = scanned_bot_event.speed
-            enemy.position = (scanned_bot_event.x, scanned_bot_event.y)
-            enemy.last_seen = scanned_bot_event.turn_number
-            enemy.distance = self.distance_to(scanned_bot_event.x, scanned_bot_event.y)
+            enemy.add_history(enemy.copy())
+            enemy.set_energy(scanned_bot_event.energy)
+            enemy.set_direction(scanned_bot_event.direction)
+            enemy.set_speed(scanned_bot_event.speed)
+            enemy.set_position((scanned_bot_event.x, scanned_bot_event.y))
+            enemy.set_last_seen(scanned_bot_event.turn_number)
+            enemy.set_distance(self.distance_to(scanned_bot_event.x, scanned_bot_event.y))
 
 
     async def on_bot_death(self, bot_death_event: BotDeathEvent) -> None:
@@ -183,25 +179,22 @@ class Anjing(Bot):
             if self._target_enemy and self._target_enemy.id == bot_death_event.victim_id:
                 self._target_enemy = None
 
-class EnemyInfo:
-    def __init__(self, 
-                enemy_id: int,
-                energy: float,
-                direction: float,
-                speed: float,
-                position: tuple[float, float],
-                last_seen: int,
-                distance: float = float('inf')
-                ) -> None:
-        self.id: int = enemy_id
-        self.is_alive: bool = True
-        self.energy: float = energy
-        self.direction: float = direction
-        self.speed: float = speed
-        self.position: tuple[float, float] = position
-        self.last_seen: int = last_seen
-        self.distance: float = distance
-        self.history: list[EnemyInfo] = []
+
+    async def on_bullet_hit_bot(self, bullet_hit_event: BulletHitBotEvent) -> None:
+        del bullet_hit_event
+
+
+    async def on_bullet_hit_wall(self, bullet_hit_wall_event: BulletHitWallEvent) -> None:
+        del bullet_hit_wall_event
+
+
+    async def on_bullet_hit_bullet(self, bullet_hit_bullet_event: BulletHitBulletEvent) -> None:
+        del bullet_hit_bullet_event
+
+
+    async def on_bullet_fired(self, bullet_fired_event: BulletFiredEvent) -> None:
+        del bullet_fired_event
+
 
 async def main() -> None:
     bot = Anjing()
