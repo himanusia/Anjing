@@ -1,7 +1,14 @@
 import asyncio
 
 from robocode_tank_royale.bot_api.bot import Bot
-from robocode_tank_royale.bot_api.events import ScannedBotEvent, BotDeathEvent, BulletHitBotEvent, BulletHitBulletEvent, BulletHitWallEvent, BulletFiredEvent
+from robocode_tank_royale.bot_api.events import (ScannedBotEvent, 
+                                                 BotDeathEvent, 
+                                                 BulletHitBotEvent, 
+                                                 BulletHitBulletEvent, 
+                                                 BulletHitWallEvent, 
+                                                 BulletFiredEvent, 
+                                                 SkippedTurnEvent
+                                                )
 from robocode_tank_royale.bot_api.graphics.color import Color
 
 import numpy as np
@@ -39,11 +46,16 @@ class Anjing(Bot):
         self._bullet_dict = {}
         self._target_enemy = None
 
+        self.body_color = Color.from_rgb(0, 0, 0)
+        self.radar_color = Color.from_rgb(0, 0, 0)
+        self.bullet_color = Color.from_rgb(255, 127, 127)
+
         while self.is_running():
             await self._handle_select_target()
             await self._handle_movement()
             await self._handle_gun()
             await self._handle_radar()
+            await self._handle_taunt()
 
             await self.go()
 
@@ -151,6 +163,16 @@ class Anjing(Bot):
             self.set_turn_radar_left(float('inf') * sudut)
 
 
+    async def _handle_taunt(self) -> None:
+        turn_color = self.get_turn_number() * 5
+        self.tracks_color = Color.from_rgb(turn_color % 256, turn_color % 256, 0)
+
+        heat_color = int(100 * (1 - max(0, self.get_gun_heat())))
+        self.scan_color = Color.from_rgb(heat_color, 10, 10)
+        self.gun_color = Color.from_rgb(heat_color, 10, 10)
+        self.turret_color = Color.from_rgb(100 - heat_color, 10, 10)
+
+
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
         if scanned_bot_event.scanned_bot_id not in self._enemy_dict:
             self._enemy_dict[scanned_bot_event.scanned_bot_id] = EnemyInfo(
@@ -194,6 +216,10 @@ class Anjing(Bot):
 
     async def on_bullet_fired(self, bullet_fired_event: BulletFiredEvent) -> None:
         del bullet_fired_event
+
+
+    async def on_skipped_turn(self, skipped_turn_event: SkippedTurnEvent) -> None:
+        print("Skipped turn:", skipped_turn_event)
 
 
 async def main() -> None:

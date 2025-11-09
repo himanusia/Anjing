@@ -47,3 +47,6 @@
 - add gun heat, last hit by, acceleration
 - add event handling
 - add utils with EnemyInfo and BulletInfo
+### v4.4
+- add taunt
+- skipped turn debug
