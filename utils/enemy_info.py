@@ -1,5 +1,7 @@
 class EnemyInfo:
-    def __init__(self, 
+    BIN: int = 47
+
+    def __init__(self,
                  enemy_id: int,
                  energy: float,
                  direction: float,
@@ -12,19 +14,20 @@ class EnemyInfo:
                  gun_heat: float = 0.0,
                  last_hit_by_time: int = -1
                 ) -> None:
-        self.id: int = enemy_id
-        self.is_alive: bool = True
-        self.energy: float = energy
-        self.direction: float = direction
-        self.speed: float = speed
-        self.position: tuple[float, float] = position
-        self.last_seen: int = last_seen
-        self.distance: float = distance
-        self.angular_velocity: float = angular_velocity
-        self.acceleration: float = acceleration
-        self.gun_heat: float = gun_heat
-        self.last_hit_by_time: int = last_hit_by_time
+        self.id = enemy_id
+        self.is_alive = True
+        self.energy = energy
+        self.direction = direction
+        self.speed = speed
+        self.position = position
+        self.last_seen = last_seen
+        self.distance = distance
+        self.angular_velocity = angular_velocity
+        self.acceleration = acceleration
+        self.gun_heat = gun_heat
+        self.last_hit_by_time = last_hit_by_time
         self.history: list[EnemyInfo] = []
+        self.surf_stat: list[float] = [0.0 for _ in range(EnemyInfo.BIN)]
         
     def __repr__(self) -> str:
         return f"EnemyInfo(id={self.id}, is_alive={self.is_alive}, energy={self.energy}, direction={self.direction}, angular_velocity={self.angular_velocity}, speed={self.speed}, acceleration={self.acceleration}, position={self.position}, last_seen={self.last_seen}, distance={self.distance}, last_hit_by_time={self.last_hit_by_time})"

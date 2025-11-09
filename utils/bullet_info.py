@@ -1,15 +1,18 @@
 class BulletInfo:
-    def __init__(self, 
-                 id: int, 
+    def __init__(self,
+                 owner_id: int,
+                 position: tuple[float, float],
+                 fire_time: int,
                  power: float,
-                 heading: float,
+                 direction: float,
                  speed: float,
-                 x: float,
-                 y: float
                 ) -> None:
-        self.id: int = id
-        self.power: float = power
-        self.heading: float = heading
-        self.speed: float = speed
-        self.x: float = x
-        self.y: float = y
+        self.owner_id = owner_id
+        self.position = position
+        self.fire_time = fire_time
+        self.power = power
+        self.direction = direction
+        self.speed = speed
+
+    def on_tick_update(self) -> None:
+        pass

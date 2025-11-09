@@ -50,3 +50,10 @@
 ### v4.4
 - add taunt
 - skipped turn debug
+
+## WAVE
+### v5.0
+- add WaveBullet, Rect, MathUtils class
+- fix stop and go bug
+- target clamping
+- BASIC WAVE SURFING!!!
