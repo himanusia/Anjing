@@ -51,9 +51,16 @@
 - add taunt
 - skipped turn debug
 
-## WAVE
+## ADVANCE STUFF
 ### v5.0
 - add WaveBullet, Rect, MathUtils class
 - fix stop and go bug
 - target clamping
 - BASIC WAVE SURFING!!!
+
+### v5.1
+- add wave graphic debugging
+- fix reset wave per round
+- change movement logic to use coordinat instead of angle
+- fix wave start position
+- add add enemy position as a risk in danger calculation

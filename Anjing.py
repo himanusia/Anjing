@@ -56,9 +56,9 @@ class Anjing(Bot):
         self.set_adjust_gun_for_body_turn(True)
 
         # Reset enemy info
-        self._enemy_dict = {}
-        self._bullet_dict = {}
         self._target_enemy = None
+        self._enemy_dict = {}
+        self._wave_bullet = {}
 
         self.body_color = Color.from_rgb(0, 0, 0)
         self.radar_color = Color.from_rgb(0, 0, 0)
@@ -87,30 +87,14 @@ class Anjing(Bot):
         if wave_bullet is None:
             return
 
-        danger_left = self.check_danger_dir(wave_bullet, -1)
-        danger_right = self.check_danger_dir(wave_bullet, 1)
+        danger_left, pos_left = self.check_danger(wave_bullet, -1)
+        danger_right, pos_right = self.check_danger(wave_bullet, 1)
 
-        go_angle = mu.angle_between_points(
-            wave_bullet.bullet_info.position,
-            (self.get_x(), self.get_y())
-        )
-
-        if danger_left < danger_right:
-            go_angle = self.wall_smoothing(
-                (self.get_x(), self.get_y()),
-                go_angle - 90.0,
-                -1
-            )
-            self._sag_dir = -1
-        else:
-            go_angle = self.wall_smoothing(
-                (self.get_x(), self.get_y()),
-                go_angle + 90.0,
-                1
-            )
-            self._sag_dir = 1
-
-        self.set_back_as_front(go_angle)
+        pos = pos_left if danger_left < danger_right else pos_right
+        turn = np.radians(self.bearing_to(*pos))
+        self.set_turn_left(np.degrees(np.tan(turn)))
+        self.set_forward(self.distance_to(*pos) * np.cos(turn))
+    
 
     async def _handle_gun(self) -> None:
         # Make sure we have a target
@@ -132,16 +116,17 @@ class Anjing(Bot):
             dir_change = new_enemy_dir - (enemy.history[-1].direction if enemy.history else enemy.direction)
             self._old_enemy_dir_ = new_enemy_dir
 
-            g = self.get_graphics()
+            # g = self.get_graphics()
+
             t, pred_x, pred_y = 0, xm, ym
             while (t * bullet_speed < np.hypot((pred_x - self.get_x()), (pred_y - self.get_y()))):
                 new_enemy_dir += dir_change
                 pred_x += np.cos(np.radians(new_enemy_dir)) * enemy.speed
                 pred_y += np.sin(np.radians(new_enemy_dir)) * enemy.speed
                 
-                color = Color.from_rgba(t * 8, 0, 0, t * 15)
-                g.set_fill_color(color)
-                g.fill_circle(pred_x, pred_y, 20)
+                # color = Color.from_rgba(t * 8, 0, 0, t * 15)
+                # g.set_fill_color(color)
+                # g.fill_circle(pred_x, pred_y, 20)
                 t += 1
 
             pred_x, pred_y = self._arena_rect.limit(pred_x, pred_y)
@@ -193,6 +178,7 @@ class Anjing(Bot):
             enemy.set_distance(self.distance_to(scanned_bot_event.x, scanned_bot_event.y))
 
         energy_drop = (enemy.history[-1].energy if enemy.history else enemy.energy) - scanned_bot_event.energy
+        speed = self.calc_bullet_speed(energy_drop)
 
         # Detect Enemy Bullet and Log Wave Bullet
         if 0.1 <= energy_drop <= 3:
@@ -203,7 +189,8 @@ class Anjing(Bot):
                     self.get_turn_number(),
                     energy_drop,
                     mu.angle_between_points(enemy.history[-1].position, (self.get_x(), self.get_y())),
-                    self.calc_bullet_speed(energy_drop),
+                    speed,
+                    speed * 2,
                 )
             ]
 
@@ -228,27 +215,39 @@ class Anjing(Bot):
     
 
     async def on_bullet_hit_bot(self, bullet_hit_event: BulletHitBotEvent) -> None:
+        # gausa munculin wave
         del bullet_hit_event
 
 
     async def on_bullet_hit_wall(self, bullet_hit_wall_event: BulletHitWallEvent) -> None:
+        # remove wave
         del bullet_hit_wall_event
 
 
     async def on_bullet_hit_bullet(self, bullet_hit_bullet_event: BulletHitBulletEvent) -> None:
+        # shielding
         del bullet_hit_bullet_event
 
 
     async def on_bullet_fired(self, bullet_fired_event: BulletFiredEvent) -> None:
+        # add wave buat guess factor
         del bullet_fired_event
 
 
     async def on_tick(self, tick_event: TickEvent) -> None:
         del tick_event
 
+        g = self.get_graphics()
+
         for wave_bullet_list in self._wave_bullet.values():
             for wave_bullet in wave_bullet_list:
                 wave_bullet.distance += wave_bullet.bullet_info.speed
+
+                bullet_current_position = mu.project(wave_bullet.bullet_info.position, wave_bullet.bullet_info.direction, wave_bullet.distance)
+
+                g.draw_line(*wave_bullet.bullet_info.position, *bullet_current_position)
+                g.draw_circle(*wave_bullet.bullet_info.position, wave_bullet.distance)
+                g.set_stroke_color(Color.from_rgb(200, 200, 200))
 
                 if wave_bullet.distance ** 2 > (self.get_x() - wave_bullet.bullet_info.position[0]) ** 2 + \
                    (self.get_y() - wave_bullet.bullet_info.position[1]) ** 2:
@@ -321,10 +320,8 @@ class Anjing(Bot):
         intercepted = False
 
         while not intercepted and counter < 500:
-            # Bearing dari wave source ke posisi kita
             abs_bearing = mu.angle_between_points((fire_x, fire_y), (x, y)) 
 
-            # Target angle = bearing + 90° * direction, lalu wall smoothing
             move_angle = self.wall_smoothing(
                 (x, y),
                 abs_bearing + direction * 90.0,
@@ -333,17 +330,13 @@ class Anjing(Bot):
 
             move_dir = 1.0
 
-            # Jika menghadap "belakang", balik arah +180
             if np.cos(np.radians(move_angle)) < 0:
                 move_angle += 180.0
                 move_dir = -1.0
 
-            # Normalisasi ke [-180, 180]
             move_angle = self.normalize_relative_angle(move_angle)
 
-            max_turn = 10.0 - 0.75 * abs(predicted_velocity)
-            if max_turn < 0:
-                max_turn = 0  # safeguard
+            max_turn = max(0, 10.0 - 0.75 * abs(predicted_velocity))
 
             turn = mu.limit(-max_turn, move_angle, max_turn)
             predicted_heading = self.normalize_relative_angle(predicted_heading + turn)
@@ -367,28 +360,19 @@ class Anjing(Bot):
         return (x, y)
 
 
-    def check_danger_dir(self, wave_bullet: WaveBullet, direction: int) -> float:
+    def check_danger(self, wave_bullet: WaveBullet, direction: int) -> tuple[float, tuple[float, float]]:
         position = self.predict_position(wave_bullet, direction)
         index = self.get_factor_index(wave_bullet, position)
         enemy = self._enemy_dict.get(wave_bullet.bullet_info.owner_id)
+
         if enemy:
-            return enemy.surf_stat[index]
-        return 0.0
+            danger = enemy.surf_stat[index]
 
+            for en in self._enemy_dict.values():
+                danger += 1 / ((position[0] - en.position[0]) ** 2 + (position[1] - en.position[1]) ** 2)
 
-    def set_back_as_front(self, go_angle_deg: float, distance: float = 120.0) -> None:
-        angle = self.normalize_relative_angle(go_angle_deg - self.get_direction())
-
-        if abs(angle) > 90:
-            if angle > 0:
-                angle -= 180
-            else:
-                angle += 180
-            self.set_turn_left(angle)
-            self.set_forward(-distance)
-        else:
-            self.set_turn_left(angle)
-            self.set_forward(distance)
+            return danger, position
+        return 0.0, position
 
 
 async def main() -> None:

@@ -1,5 +1,5 @@
 class EnemyInfo:
-    BIN: int = 47
+    BIN: int = 15
 
     def __init__(self,
                  enemy_id: int,
