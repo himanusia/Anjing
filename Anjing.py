@@ -14,6 +14,7 @@ from robocode_tank_royale.bot_api.events import (HitByBulletEvent,
 from robocode_tank_royale.bot_api.graphics.color import Color
 
 import numpy as np
+from collections import OrderedDict
 
 from utils import (
                     EnemyInfo, 
@@ -39,6 +40,10 @@ class Anjing(Bot):
         self._enemy_dict: dict[int, EnemyInfo] = {}
         self._wave_bullet: dict[int, list[WaveBullet]] = {}
 
+        self._scanned_enemy_id: OrderedDict[int, None] = OrderedDict()
+        self._radar_target_id: int | None = None
+        self._radar_last_scan_id: int | None = None
+
 
     async def run(self) -> None:
         arena_height, arena_width = self.get_arena_height(), self.get_arena_width()
@@ -57,8 +62,12 @@ class Anjing(Bot):
 
         # Reset enemy info
         self._target_enemy = None
-        self._enemy_dict = {}
-        self._wave_bullet = {}
+        self._enemy_dict.clear()
+        self._wave_bullet.clear()
+
+        self._scanned_enemy_id.clear()
+        self._radar_target_id = None
+        self._radar_last_scan_id = None
 
         self.body_color = Color.from_rgb(0, 0, 0)
         self.radar_color = Color.from_rgb(0, 0, 0)
@@ -135,15 +144,30 @@ class Anjing(Bot):
 
     async def _handle_radar(self) -> None:
         # Make sure we have a target
-        if self._target_enemy is None:
+        if self._target_enemy is None or self._radar_last_scan_id is None:
             return
+
+        if self._enemy_dict[self._radar_last_scan_id].last_seen < self.get_turn_number() - 1:
+            self.set_turn_radar_left(float("inf"))
+            return
+
         enemy = self._target_enemy
 
-        # Radar Lock (called 1 tick before updating enemy info)
+        eid = self._enemy_dict[self._radar_last_scan_id].id
+        if eid in self._scanned_enemy_id:
+            del self._scanned_enemy_id[eid]
+        self._scanned_enemy_id[eid] = None
+        
         if self.get_enemy_count() == 1 or \
-            (enemy.last_seen + 1 == self.get_turn_number() and self.get_gun_heat() < 0.7):
-            sudut = self.normalize_relative_angle(self.radar_bearing_to(*enemy.position))
-            self.set_turn_radar_left(float('inf') * sudut)
+           (eid == enemy.id and self.get_gun_heat() < 0.5):
+            self.set_turn_radar_left(float("inf") * self.radar_bearing_to(*enemy.position))
+            return
+
+        if len(self._scanned_enemy_id) < self.get_enemy_count() or self._enemy_dict[self._radar_last_scan_id].is_alive is False:
+            return
+
+        self._radar_target_id, _ = next(iter(self._scanned_enemy_id.items()))
+        self.set_turn_radar_left(float("inf") * self.radar_bearing_to(*self._enemy_dict[self._radar_target_id].position))
 
 
     async def _handle_taunt(self) -> None:
@@ -157,6 +181,8 @@ class Anjing(Bot):
 
 
     async def on_scanned_bot(self, scanned_bot_event: ScannedBotEvent) -> None:
+        self._radar_last_scan_id = scanned_bot_event.scanned_bot_id
+
         if scanned_bot_event.scanned_bot_id not in self._enemy_dict:
             enemy = self._enemy_dict[scanned_bot_event.scanned_bot_id] = EnemyInfo(
                 scanned_bot_event.scanned_bot_id,
@@ -200,6 +226,12 @@ class Anjing(Bot):
             self._enemy_dict[bot_death_event.victim_id].is_alive = False
             if self._target_enemy and self._target_enemy.id == bot_death_event.victim_id:
                 self._target_enemy = None
+            if bot_death_event.victim_id in self._scanned_enemy_id:
+                del self._scanned_enemy_id[bot_death_event.victim_id]
+            if self._radar_target_id == bot_death_event.victim_id:
+                self._radar_target_id = None
+            if self._radar_last_scan_id == bot_death_event.victim_id:
+                self._radar_last_scan_id = None
 
 
     async def on_hit_by_bullet(self, hit_by_bullet_event: HitByBulletEvent) -> None:
@@ -369,7 +401,10 @@ class Anjing(Bot):
             danger = enemy.surf_stat[index]
 
             for en in self._enemy_dict.values():
-                danger += 1 / ((position[0] - en.position[0]) ** 2 + (position[1] - en.position[1]) ** 2)
+                if not en.is_alive:
+                    continue
+
+                danger += 5 / ((position[0] - en.position[0]) ** 2 + (position[1] - en.position[1]) ** 2)
 
             return danger, position
         return 0.0, position

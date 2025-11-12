@@ -51,7 +51,7 @@
 - add taunt
 - skipped turn debug
 
-## ADVANCE STUFF
+## IMPROVEMENT
 ### v5.0
 - add WaveBullet, Rect, MathUtils class
 - fix stop and go bug
@@ -64,3 +64,6 @@
 - change movement logic to use coordinat instead of angle
 - fix wave start position
 - add add enemy position as a risk in danger calculation
+
+### v5.2
+- improve radar scan to use oldest scanned
